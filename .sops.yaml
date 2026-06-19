@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: secrets/.*
+    kms: arn:aws:kms:us-east-2:712671171381:alias/sops
