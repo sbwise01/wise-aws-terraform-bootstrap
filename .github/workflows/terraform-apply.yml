@@ -43,9 +43,24 @@ jobs:
         id: init
         run: terraform init -input=false
 
+      - name: Terraform Plan
+        id: plan
+        run: |
+          set +e
+          terraform plan -input=false -no-color -detailed-exitcode -out=tfplan 2>&1 | tee plan.txt
+          code=${PIPESTATUS[0]}
+          echo "exitcode=${code}" >> "$GITHUB_OUTPUT"
+          # 0 = no changes, 2 = changes present, 1 = error
+          if [ "${code}" -eq 1 ]; then
+            exit 1
+          fi
+          exit 0
+        continue-on-error: true
+
       - name: Terraform Apply
         id: apply
-        run: terraform apply -input=false -no-color -auto-approve 2>&1 | tee apply.txt
+        if: steps.plan.outputs.exitcode == '2'
+        run: terraform apply -input=false -no-color tfplan 2>&1 | tee apply.txt
         continue-on-error: true
 
       - name: Find originating pull request
@@ -72,20 +87,37 @@ jobs:
             echo "| Step | Result |"
             echo "| --- | --- |"
             echo "| Init | \`${{ steps.init.outcome }}\` |"
+            echo "| Plan | \`${{ steps.plan.outcome }}\` |"
             echo "| Apply | \`${{ steps.apply.outcome }}\` |"
             echo ""
-            echo "<details><summary>Show Apply</summary>"
-            echo ""
-            echo '```terraform'
             # GitHub comments cap at 65536 chars; keep headroom for the wrapper.
-            head -c 60000 apply.txt
-            if [ "$(wc -c < apply.txt)" -gt 60000 ]; then
+            if [ "${{ steps.plan.outputs.exitcode }}" = "2" ]; then
+              echo "<details><summary>Show Apply</summary>"
               echo ""
-              echo "... output truncated, see the workflow logs for the full apply ..."
+              echo '```terraform'
+              head -c 60000 apply.txt
+              if [ "$(wc -c < apply.txt)" -gt 60000 ]; then
+                echo ""
+                echo "... output truncated, see the workflow logs for the full apply ..."
+              fi
+              echo '```'
+              echo ""
+              echo "</details>"
+            else
+              echo "_No changes detected in the plan — apply was skipped._"
+              echo ""
+              echo "<details><summary>Show Plan</summary>"
+              echo ""
+              echo '```terraform'
+              head -c 60000 plan.txt
+              if [ "$(wc -c < plan.txt)" -gt 60000 ]; then
+                echo ""
+                echo "... output truncated, see the workflow logs for the full plan ..."
+              fi
+              echo '```'
+              echo ""
+              echo "</details>"
             fi
-            echo '```'
-            echo ""
-            echo "</details>"
             echo ""
             echo "_Merged by @${{ github.actor }} · Commit: \`${{ github.sha }}\`_"
           } > comment.md
@@ -97,6 +129,10 @@ jobs:
           header: terraform-apply
           number: ${{ steps.pr.outputs.number }}
           path: comment.md
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
 
       - name: Fail if apply failed
         if: steps.apply.outcome == 'failure'
