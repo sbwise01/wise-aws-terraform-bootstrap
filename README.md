@@ -5,3 +5,5 @@ Resources include:
 - S3 bucket with versioning to store state data
 - IAM role to configure in AWS providers
 - Route53 delegation set to lock down a set of nameservers
+- KMS key for SOPS integration
+- SSM parameter for [Infracost API](https://www.infracost.io/docs/infracost_cloud/api/) Token
