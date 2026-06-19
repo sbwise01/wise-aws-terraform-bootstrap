@@ -5,7 +5,7 @@ data "aws_iam_policy_document" "sops" {
 
     principals {
       type        = "AWS"
-      identifiers = ["arn:aws:iam::712671171381:root"]
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
     }
 
     actions   = ["kms:*"]
@@ -20,7 +20,7 @@ data "aws_iam_policy_document" "sops" {
       type = "AWS"
       identifiers = [
         aws_iam_role.terraform.arn,
-        "arn:aws:iam::712671171381:user/brad",
+        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/brad",
       ]
     }
 
@@ -53,7 +53,7 @@ data "aws_iam_policy_document" "sops" {
       type = "AWS"
       identifiers = [
         aws_iam_role.terraform.arn,
-        "arn:aws:iam::712671171381:user/brad",
+        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/brad",
       ]
     }
 
